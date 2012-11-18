@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Checkers</title>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js" type="text/javascript"></script>
+		<script language="javascript" src="jquery.hotkeys.js" type="text/javascript"></script>
+		<script language="javascript" src="key_status.js" type="text/javascript"></script>
+		<script language="javascript" src="util.js" type="text/javascript"></script>
+		<script language="javascript" src="sprite.js" type="text/javascript"> </script>
+	</head>
+	<body>
+		<h1> Checkers </h1>
+		Arrow keys to move, Press Z to select a piece <br> and then where you would like to move it
+		<br>
+		<br>
+	</body>
+	<script type="text/javascript">
+		var CANVAS_WIDTH = 256;
+		var CANVAS_HEIGHT = 256;
+		var canvasElement = $("<canvas width='" + CANVAS_WIDTH + "' height='" + CANVAS_HEIGHT + "'></canvas>");
+		var canvas = canvasElement.get(0).getContext("2d");
+		canvasElement.appendTo('body');
+		var redPieces = 12;
+		var blackPieces = 12;
+		var myImg = new Image();
+		myImg.src = 'board.png';
+		var redTurn = 0;
+		
+		var FPS = 10;
+		setInterval(function() {
+			update();
+			draw();
+		}, 1000/FPS);
+		/*
+		var pieceBlack(_x,_y) {
+			x: _x,
+			y: _y,
+			sprite: Sprite("black");
+			draw: function() {
+			this.sprite.draw(canvas,this.x,this.y);	}
+		};
+		
+		var pieceRed(_x,_y) {
+			x: _x,
+			y: _y,
+			sprite: Sprite("red");
+			draw: function() {
+			this.sprite.draw(canvas,this.x,this.y);	}
+		};
+		*/
+		//pieceBlack.sprite = Sprite("black");
+
+		//pieceBlack.draw = function(){};
+		
+		function pieceBlack(_x,_y){
+			this.x = _x;
+			this.y = _y;
+			this.type = "black";
+			this.sprite = Sprite("black");
+			this.king = 0;
+			this.draw = function() { this.sprite.draw(canvas,this.x,this.y);}
+			this.update = function(nx,ny) {this.x = nx; this.y = ny;}
+			}
+		
+		function pieceRed(_x,_y){
+			this.x = _x;
+			this.y = _y;
+			this.type = "red";
+			this.sprite = Sprite("red");
+			this.king = 0;
+			this.draw = function() { this.sprite.draw(canvas,this.x,this.y);}
+			this.update = function(nx,ny) {this.x = nx; this.y = ny;}
+			}
+			
+		function boardSquare(_id, _piece,_x,_y) {
+			this.id = _id;
+			this.x = _x;
+			this.y = _y;
+			if(_piece == "red"){
+			this.piece = new pieceRed(_x,_y);}
+			else if(_piece == "black"){
+			this.piece = new pieceBlack(_x,_y);}
+			else this.piece = null;
+			this.update = function(newpiece) {			
+				this.piece = newpiece;
+				this.piece.update(this.x, this.y);}
+			}
+			
+		var board = [];
+		
+		for(var i = 0; i < 64; i++){
+			if(i < 8 && i % 2 != 0) board[i] = new boardSquare(i,"black",i * 32, 0);
+			else if(i > 7 && i < 16 && i % 2 === 0) board[i] = new boardSquare(i, "black",(i % 8)  * 32, 32);
+			else if(i > 15 && i < 24 && i % 2 != 0) board[i] = new boardSquare(i, "black", (i % 8) * 32, 64);
+			else if(i > 23 && i < 32 && i % 2 === 0) board[i] = new boardSquare(i, null, (i % 8) * 32, 96);
+			else if(i > 31 && i < 40 && i % 2 != 0) board[i] = new boardSquare(i, null, (i % 8) * 32, 128);
+			else if(i > 39 && i < 48 && i % 2 === 0) board[i] = new boardSquare(i,"red",(i % 8) * 32, 160);
+			else if(i > 47 && i < 56 && i % 2 != 0) board[i] = new boardSquare(i, "red",(i % 8) * 32, 192);
+			else if(i > 55 && i < 64 && i % 2 === 0) board[i] = new boardSquare(i, "red",(i % 8) * 32, 224);
+			else board[i] = new boardSquare(null, 0,0);
+		}
+		
+		var selector = {
+			x: 0,
+			y: 0,
+			width: 32,
+			height: 32,
+			sprite: Sprite("selector"),
+			draw: function() {
+			this.sprite.draw(canvas,this.x,this.y);
+			}
+		};
+		
+		var selectorShadow =  null;
+		function selected(x){
+		if(x === 1){
+		selectorShadow = {
+			x: selector.x,
+			y: selector.y,
+			width: 32,
+			height: 32,
+			sprite: Sprite("selector"),
+			draw: function() {
+			this.sprite.draw(canvas,this.x,this.y);
+			}
+		};}
+		else {selectorShadow = null; canvas.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+		}
+		}
+		var selection = [];
+		selection[0] = null;
+		
+		function round(x){
+			var i = 0;
+			if(x % 32 > 20){i++;}
+			return Math.floor(x / 32) + i;
+		}
+		
+		function select(){
+			if(selection[0] === null){
+				selection[0] = round(selector.x);
+				selection[1] = round(selector.y);
+				selected(1);
+				}
+			else {
+				selection[2] = round(selector.x);
+				selection[3] = round(selector.y);
+				selected(0);
+				getPieces(selection[0],selection[1],selection[2],selection[3]);
+				selection[0] = null;
+				scanKings();
+				}
+		console.log(selector.x + ", " + selector.y);
+		}
+		
+		function getPieces(a,b,c,d){
+			console.log("THIS RAN FOR " + (a + (b * 8)) + ", " + (c + (d * 8)));
+			start = a + (b * 8);
+			end = c + (d * 8);
+			if(board[start].piece === null) return;
+			if(board[start].piece.type == "black" && redTurn === 1) return;
+			if(board[start].piece.type == "red" && redTurn === 0) return;
+			
+			if(board[start].piece.type == "black"){
+				if(d < b ) return;
+				if(a < c) {if(board[end].id === (board[start].id + 9)  && board[end].piece == null) {
+				board[end].update(board[start].piece); board[start].piece = null; redTurn = 1; return;}}
+				else if(board[end].id === (board[start].id + 7) && board[end].piece == null) {
+				board[end].update(board[start].piece); board[start].piece = null; redTurn = 1; return;}
+			}
+			
+			if(board[start].piece.type == "red"){
+				if(b < d) return;			
+				if(board[end].id === (board[start].id - 9)  && board[end].piece == null) {
+				board[end].update(board[start].piece); board[start].piece = null; redTurn = 0; return;}
+				if(board[end].id === (board[start].id - 7) && board[end].piece == null) {
+				board[end].update(board[start].piece); board[start].piece = null; redTurn = 0; return;}
+			}
+			
+			if(board[start].piece.type == "black"){
+				if(board[end].id === board[start].id + 18 && board[end].piece == null && board[start + 9].piece.type === "red" ) {
+				board[end].update(board[start].piece); board[start + 9].piece = null; board[start].piece = null; redPieces--; 
+				redTurn = 1;
+				if ((end + 18 < 64) && board[end + 18] === null && board[end + 9].piece.type === "red") redTurn = 0;
+				if ((end + 18 < 64)  && board[end + 14] === null && board[end + 7].piece.type === "red") redTurn = 0;
+				}
+				
+				else if(board[end].id === board[start].id + 14 && board[end].piece == null && board[start + 7].piece.type === "red" ) { 
+				board[end].update(board[start].piece); board[start + 7].piece = null; board[start].piece = null; redPieces--; redTurn = 1;
+				if ((end + 18 < 64) && board[end + 18] === null && board[end + 9].piece.type === "red") redTurn = 0;
+				if ((end + 18 < 64)  && board[end + 14] === null && board[end + 7].piece.type === "red") redTurn = 0;
+				}
+			}
+			
+			else {
+				if(board[end].id === board[start].id - 18 && board[end].piece == null && board[start - 9].piece.type === "black" ) { redTurn = 1;
+				board[end].update(board[start].piece); board[start - 9].piece = null; board[start].piece = null; blackPieces--; }
+				
+				else if(board[end].id === board[start].id - 14 && board[end].piece == null && board[start - 7].piece.type === "black" ) { redTurn = 1;
+				board[end].update(board[start].piece); board[start - 7].piece = null; board[start].piece = null; blackPieces--; }
+			}
+			console.log("GOT THROUGH");
+		}
+
+		function jumpScan(chip){
+			if(board[chip].piece.type === "black"){
+				 if ((chip + 18 < 64) && board[chip + 18] === null && board[chip + 9].piece.type === "red") return true;
+				 if ((chip + 18 < 64)  && board[chip + 14] === null && board[chip + 7].piece.type === "red") return true;
+					 }
+				else {if ((chip - 18 > 0) && board[chip - 18] === null && board[chip - 9].piece.type === "black" ) return true;
+					 if ((chip - 18 > 0) && board[chip - 14] === null && board[chip - 7].piece.type === "black" ) return true;
+			}
+			return false;
+		}
+		function update() {
+			if(redPieces == 0 || blackPieces == 0) return;
+			if(keydown.left) {
+				selector.x -= 32;
+			}
+			if(keydown.up) {
+				selector.y -= 32;
+			}
+			if(keydown.right) {
+				selector.x += 32;
+			}
+			if(keydown.down) {
+				selector.y += 32;
+			}
+			selector.x = selector.x.clamp(0, CANVAS_WIDTH - selector.width);
+			selector.y = selector.y.clamp(0, CANVAS_HEIGHT - selector.width);			
+			if(keydown.z) {
+				select();
+			}	
+			if(keydown.t){test();}
+		}
+		
+		function kingMe(x){
+			board[x].piece.king = 1;
+			board[x].piece.sprite = Sprite(board[x].piece.type + "_k");
+		}
+		
+		function scanKings(){
+			for(var i = 56; i < board.length; i++){
+			if(board[i].piece != null && board[i].piece.type === "black") kingMe(i);
+			}
+			for( i = 0; i < 8; i++){
+			if(board[i].piece != null && board[i].piece.type === "red") kingMe(i);
+			}
+			}
+			
+		function test(){
+			console.log(redTurn);
+			};
+			
+		function draw() {
+			canvas.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+			canvas.drawImage(myImg, 0, 0, 256, 256)
+			selector.draw();
+			if(selectorShadow != null) selectorShadow.draw();
+			for(var i = 0; i < 64; i++){
+			if (board[i].piece != null) board[i].piece.draw();}
+			//console.log(board[1].piece.type + ", " + board[1].x +", " +board[1].y);
+			//board[24].update(board[1].piece);
+			//board[1].piece = null;
+			}
+	</script>
+</html>
